@@ -1,122 +1,122 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
+import { useState, useEffect, useRef, useCallback } from 'react';
+import HTMLFlipBook from 'react-pageflip';
+import './App.css';
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+// Fix for React PageFlip TS errors
+const FlipBook = HTMLFlipBook as any;
 
-      <div className="ticks"></div>
+// Dynamically import all images in the catalogue-pages folder
+// @ts-ignore
+const imagesGlob = import.meta.glob('./assets/catalogue-pages/catalogue-*.webp', { eager: true, query: '?url', import: 'default' });
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+const sortedImages = Object.entries(imagesGlob)
+  .sort(([pathA], [pathB]) => {
+    const numA = parseInt(pathA.match(/catalogue-(\d+)\.webp/)?.[1] || '0', 10);
+    const numB = parseInt(pathB.match(/catalogue-(\d+)\.webp/)?.[1] || '0', 10);
+    return numA - numB;
+  })
+  .map(([_, url]) => url as string);
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+const MOBILE_BREAKPOINT = 768;
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(
+    () => window.innerWidth <= MOBILE_BREAKPOINT
+  );
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  return isMobile;
 }
 
-export default App
+function App() {
+  const isMobile = useIsMobile();
+  const bookRef = useRef<any>(null);
+
+  const handlePrev = useCallback(() => {
+    bookRef.current?.pageFlip()?.flipPrev();
+  }, []);
+
+  const handleNext = useCallback(() => {
+    bookRef.current?.pageFlip()?.flipNext();
+  }, []);
+
+  return (
+    <div className="app-container">
+      <main className="catalog-wrapper">
+        <div className="book-container">
+          <FlipBook
+            ref={bookRef}
+            width={595}
+            height={842}
+            size="stretch"
+            minWidth={isMobile ? 280 : 315}
+            maxWidth={isMobile ? 600 : 1000}
+            minHeight={isMobile ? 300 : 400}
+            maxHeight={isMobile ? 900 : 1533}
+            maxShadowOpacity={isMobile ? 0 : 0.5}
+            showCover={true}
+            mobileScrollSupport={false}
+            className="flip-book"
+            showPageCorners={!isMobile}
+            flippingTime={isMobile ? 600 : 800}
+            usePortrait={isMobile}
+            drawShadow={!isMobile}
+            startZIndex={20}
+            startPage={0}
+            useMouseEvents={true}
+            swipeDistance={isMobile ? 20 : 30}
+          >
+            {sortedImages.map((src, index) => (
+              <div className="page" key={index}>
+                <div className="page-content">
+                  <img src={src} alt={`Page ${index + 1}`} className="page-image" draggable="false" loading="lazy" decoding="async" />
+                  <div className="page-number">{index + 1}</div>
+                </div>
+              </div>
+            ))}
+          </FlipBook>
+
+          {isMobile && (
+            <div className="mobile-nav">
+              <button
+                id="nav-prev"
+                className="mobile-nav-btn mobile-nav-prev"
+                onClick={handlePrev}
+                aria-label="Previous page"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+              <button
+                id="nav-next"
+                className="mobile-nav-btn mobile-nav-next"
+                onClick={handleNext}
+                aria-label="Next page"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 6 15 12 9 18" />
+                </svg>
+              </button>
+            </div>
+          )}
+        </div>
+      </main>
+
+      <footer className="footer">
+        <p className="footer-title">Catatan:</p>
+        <p>Geser halaman dari kanan ke kiri untuk beralih ke halaman berikutnya.</p>
+        <p>Geser halaman dari kiri ke kanan untuk beralih ke halaman sebelumnya.</p>
+      </footer>
+    </div>
+  );
+}
+
+export default App;
+
