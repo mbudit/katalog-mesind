@@ -1,9 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import HTMLFlipBook from 'react-pageflip';
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { cataloguePages } from './images';
 import type { FlipBookRef } from './types/react-pageflip';
 import './App.css';
+
+// Lazy-load the heavy canvas-based flip-book library so it doesn't block
+// the initial bundle. A Suspense boundary renders a fallback while the
+// chunk loads.
+const HTMLFlipBook = lazy(() => import('react-pageflip'));
 
 // Vite `?url` import fingerprints the asset with a content-hash at build time,
 // giving optimal browser-cache behaviour in both dev and production.
@@ -35,6 +39,10 @@ function useIsMobile() {
  *
  * The container is sized purely by CSS (max-width / padding / flex).
  * This hook reads the computed pixel width and derives height from it.
+ *
+ * `update` is defined at module scope so it doesn't get re-created on every
+ * `isMobile` change, which would otherwise cause the ResizeObserver to
+ * re-wire its callback unnecessarily.
  */
 function useFlipBookDimensions(isMobile: boolean) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -82,6 +90,29 @@ function App() {
   const { containerRef, dimensions } = useFlipBookDimensions(isMobile);
   const bookRef = useRef<FlipBookRef>(null);
 
+  // Memoize so the mapped JSX array isn't re-created on every render.
+  // A stable reference means HTMLFlipBook's reconciliation won't re-render
+  // pages whose props (src/alt) haven't changed.
+  const pageElements = useMemo(
+    () =>
+      cataloguePages.map((src, index) => (
+        <div className="page" key={index}>
+          <div className="page-content">
+            <img
+              src={src}
+              alt={`Page ${index + 1}`}
+              className="page-image"
+              draggable={false}
+              loading="lazy"
+              decoding="async"
+            />
+            <div className="page-number">{index + 1}</div>
+          </div>
+        </div>
+      )),
+    [cataloguePages]
+  );
+
   const handlePrev = useCallback(() => {
     bookRef.current?.pageFlip()?.flipPrev();
   }, []);
@@ -95,44 +126,32 @@ function App() {
       <main className="catalog-wrapper">
         <div className="book-container" ref={containerRef}>
           <ErrorBoundary>
-            <HTMLFlipBook
-              ref={bookRef}
-              width={dimensions.width}
-              height={dimensions.height}
-              size="stretch"
-              minWidth={isMobile ? 280 : 315}
-              maxWidth={isMobile ? 600 : 1000}
-              minHeight={isMobile ? 300 : 400}
-              maxHeight={isMobile ? 900 : 1533}
-              maxShadowOpacity={isMobile ? 0 : 0.5}
-              showCover={true}
-              mobileScrollSupport={false}
-              className="flip-book"
-              showPageCorners={!isMobile}
-              flippingTime={isMobile ? 600 : 800}
-              usePortrait={isMobile}
-              drawShadow={!isMobile}
-              startZIndex={20}
-              startPage={0}
-              useMouseEvents={true}
-              swipeDistance={isMobile ? 20 : 30}
-            >
-              {cataloguePages.map((src, index) => (
-                <div className="page" key={index}>
-                  <div className="page-content">
-                    <img
-                      src={src}
-                      alt={`Page ${index + 1}`}
-                      className="page-image"
-                      draggable={false}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    <div className="page-number">{index + 1}</div>
-                  </div>
-                </div>
-              ))}
-            </HTMLFlipBook>
+            <Suspense fallback={<div className="flip-book-loading">Memuat flipbook…</div>}>
+              <HTMLFlipBook
+                ref={bookRef}
+                width={dimensions.width}
+                height={dimensions.height}
+                size="stretch"
+                minWidth={isMobile ? 280 : 315}
+                maxWidth={isMobile ? 600 : 1000}
+                minHeight={isMobile ? 300 : 400}
+                maxHeight={isMobile ? 900 : 1533}
+                maxShadowOpacity={isMobile ? 0 : 0.5}
+                showCover={true}
+                mobileScrollSupport={false}
+                className="flip-book"
+                showPageCorners={!isMobile}
+                flippingTime={isMobile ? 600 : 800}
+                usePortrait={isMobile}
+                drawShadow={!isMobile}
+                startZIndex={20}
+                startPage={0}
+                useMouseEvents={true}
+                swipeDistance={isMobile ? 20 : 30}
+              >
+                {pageElements}
+              </HTMLFlipBook>
+            </Suspense>
           </ErrorBoundary>
 
           {isMobile && (

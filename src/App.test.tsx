@@ -3,23 +3,25 @@
  *
  * The page-flip library uses canvas/DOM internals not available in jsdom,
  * so it is mocked as a simple pass-through div.
- * The catalogue pages are imported from the isolated images.ts module.
+ *
+ * Since App uses React.lazy() for react-pageflip, the mock intercepts
+ * both the direct import and the deferred lazy() call.
  *
  * Run with: npm test          (watch mode)
  *          npm run test:run  (CI / single-run)
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import App from './App';
-import { cataloguePages } from './images';
-
-// Mock react-pageflip — canvas/DOM internals aren't available in jsdom
+// Mock must be declared before any imports.
 vi.mock('react-pageflip', () => ({
   default: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="flip-book">{children}</div>
   ),
 }));
+
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import App from './App';
+import { cataloguePages } from './images';
 
 describe('App', () => {
   it('renders without crashing', () => {
@@ -33,7 +35,7 @@ describe('App', () => {
   it(`renders all ${cataloguePages.length} catalogue pages`, () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     render(<App />);
-    expect(document.body.querySelectorAll('.page').length).toBe(cataloguePages.length);
+    expect(document.body.querySelectorAll('.page').length).toEqual(cataloguePages.length);
     spy.mockRestore();
   });
 
