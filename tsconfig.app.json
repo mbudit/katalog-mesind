@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-    "target": "es2023",
+    "target": "ES2023",
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
     "types": ["vite/client"],
@@ -14,6 +14,12 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
+
+    /* Redirect react-pageflip to our own type declaration so all props
+       are optional and the ref is typed as FlipBookRef. */
+    "paths": {
+      "react-pageflip": ["./src/types/react-pageflip.d.ts"]
+    },
 
     /* Linting */
     "noUnusedLocals": true,
